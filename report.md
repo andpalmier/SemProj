@@ -171,6 +171,132 @@ An “open” call go through the standard library, acting on the current workin
 
 # Contribution
 
+## Compile Fuchsia
+
+## Insert our program in Fuchsia
+
+The step following the compilation of Fuchsia was to insert a custom program inside the OS. Since we decided to focus on the *Zircon* layer, we started by looking there for the location of some programs we knew being part of that layer only. The source code of some of them (like *vmaps.c*, *top.c*, *memgraph.cpp*) can be found on the following directory: "*\$FUCHSIA_ROOT/zircon/system/uapp/psutils*".
+
+In this folder we created our custom program that we wanted to add in Zircon and we called it *evil.c*. At this point, we needed to tell Zircon to build this file. In order to do that, we modified the `rules.mk` file in the same folder. This is the code we added (copied from another program already there):
+
+```
+include make/module.mk 
+MODULE := $(LOCAL_DIR).evil 
+MODULE_TYPE := userapp 
+MODULE_GROUP := core 
+MODULE_SRCS += $(LOCAL_DIR)/evil.c 
+MODULE_NAME := evil 
+MODULE_LIBS := \ 
+  system/ulib/fdio \ 
+  system/ulib/zircon \ 
+  system/ulib/c 
+MODULE_STATIC_LIBS := \ 
+  system/ulib/pretty \ 
+  system/ulib/task-utils
+```
+
+After that, we built the project again (with the `fx full-build` command) and we run it. Finally, we were able to execute our custom *evil* program inside Fuchsia. We added another program to be compiled inside the OS, called *create-proc*.
+
+We decided to focus our work on these two programs: we used the *create-proc* to create a new process inside Fuchsia (so we knew the content of its memory) and *evil* to play with the OS and its syscalls. Now we are going to discuss in detail their content.
+
+## Info about `create-proc` program
+
+We followed an online blog \[PUT REFERENCE\] to create a new process in Fuchsia. This requires few steps:
+
+1) A new process is created using the `zx_process_create` function, it is empty now and it requires to be executed later. The following arguments are required:
+    - The handle of a parent job. The new process is created as child of this job, which, in our case, was the default job in Fuchsia. We obtained its handle using the `zx_job_default()` function.
+    - The name of the process
+    - The size of the name
+    - An integer for options (`0` in our case)
+  This function returns two handles: one to the new process, and a handle to the root of its address space.
+
+Two Virtual Memory Objects (VMOs) are required to proceed, one for the stack space, the other one for the code space.
+
+2) Create two (VMOs) using the `zx_vmo_create` function. The following arguments are required:
+    - The size of the VMO
+    - An integer for options (`0` in our case)
+  This function returns an handle pointing to the newly created VMO.
+
+To make the new process not being killed after the *create-proc* program is terminated, it is required to execute a jump loop instruction, which will keep it alive until another program closes it.
+
+3) An array containing the jump loop in shell code (i.e. \[`0xeb`, `0xfe`\]) is created and it will be written into the first VMO using the `zx_vmo_write` function. The following arguments are required:
+  - The handle of a VMO object
+  - A pointer to an array containing the code
+  - An integer for options (`0` in our case)
+  - The size of the code
+
+After the creation of the two VMOs we need to map them in the Virtual Memory Address Region (VMAR).
+
+4) Map the VMOs to the VMAR using the function `zx_vmar_map`. In this function we need to pass also some permissions, which will be *READ* and *WRITE* for the stack space and *READ* and *EXECUTE* for the code space. This function returns a pointer to where the VMO is mapped in the given address region. In our case, we passed the handle pointing to the root of our process' address spaces.
+
+5) In order to start our process, we needed to create a new thread as a requirement of the `zx_process_start` function as well as a new event, which is an object that is signalable.
+
+6) Finally, to start the process, we used the function `zx_process_start`. The following arguments are required:
+  - The handle of a process object
+  - The handle of a thread object
+  - The pointer to the address containing the code
+  - The pointer to the address for the stack
+  - The handle of an event object
+  - An integer for options (`0` in our case)
+
+We used this program to create a new process in Fuchsia called `my_proc` for which we knew exactly its content. Therefore, we proceeded to find a way to dump its content and the content of other processes, so we started working on the `evil` program.
+
+## Get root job
+
+Looking in the Internet for useful information, we found a video \[PUT REFERENCE\] tackling the problem of security in Fuchsia. As part of this video, the speaker presented a flaw in the current implementation of the kernel, which allows a program who is able to get the *"root job"* to obtain all its children recursively. This means that all the handles of running processes and jobs could be obtain. Therefore, we started looking in the code for references about a *root job*. 
+
+We found a reference 
+
+function $\rightarrow$ `ioctl_sysinfo_get_root_job`
+library we imported $\rightarrow$ `#include <zircon/device/sysinfo.h>`
+
+## Info about `evil` program
+
+The `evil` program can perform several actions:
+
+- Kill a process given a koid
+- Get the rights of a process given a koid
+- Dump the memory of a process given a koid
+
+In order to do each of the mentioned task, the program has to navigate the tree of running jobs and retrieve the corresponding handle starting from the root job, which we retrieve using the following code:
+
+```
+int fd = open("/dev/misc/sysinfo", O_RDWR);
+if (fd < 0) {
+    fprintf(stderr, "ERROR: Cannot open sysinfo: %s (%d)\n",
+            strerror(errno), errno);
+    return ZX_ERR_NOT_FOUND;
+}
+
+ssize_t n = ioctl_sysinfo_get_root_job(fd, root_job);
+close(fd);
+```
+
+We copied it from the code of Fuchsia and modified it to retrieve the root job. Then, we used its handle to recursively get all its children (both jobs and processes) in the following way:
+
+1) As an initial step, all the jobs and processes which are directly children of the root job are gathered using the `zx_object_get_info` function. Unfortunately, this function does not work recursively, so we had to do it on our own. Its requirements are:
+    - The handle for which info are retrieved
+    - A topic, which defines what this function will return
+In our case, we used the `ZX_INFO_JOB_PROCESSES` and `ZX_INFO_JOB_CHILDREN` to get, respectively, the processes and job children.
+
+This function returns an array of koids (ids of processes and jobs in Fuchsia) and from these, we had to get the corresponding handles. This step is required because we needed to make a recursive function, which instead of the root job handle, takes one of its children and recursively gathers all the others.
+
+2) The function `zx_object_get_child` returns the handle of a child, given the parent handle and the koid representing it. In this way, for each child of the root job we could get the corresponding handle and recursively gather all the currently running processes and jobs.
+
+After that, we wrapped these function into just one that, given a koid as input, returns its corresponding handle. Now we are going to briefly describe each of the tasks our program is doing.
+
+### Kill a process
+
+Once we have a handle representing a process/job, killing it is an easy task. This is simply done via the function `zx_task_kill`, which only requires the handle of what you want to kill.
+
+### Get rights of a process
+
+To get more info from a handle we used one of the function we already mentioned, i.e. the `zx_object_get_info` function. This time, we used the topic `ZX_INFO_HANDLE_BASIC`, which returns us a `zx_info_basic_t` object, containing some useful information, including the rights associated to that handle. However, they are not in an human readable form and therefore, we created a function that checks all the rights of the handle and prints them in a more readable way.
+
+### Dump memory of a process
+
+To dump the memory of a process we need to get where its memory is mapped. Again, we called the `zx_object_get_info` function, with the `ZX_INFO_PROCESS_MAPS` topic. This time, the result is an array of `zx_info_maps_t` objects, which, according to the documentation, is *"a depth-first pre-order walk of the target process's Aspace/VMAR/Mapping tree"*. For each element of this array we got the `base_address` and we read its associated memory with the function `zx_process_read_memory`.
+
 
 
 # Conclusions

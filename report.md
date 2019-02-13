@@ -26,7 +26,7 @@ Andrea Possemato \newline
 # Introduction
 
 Fuchsia is a new operating system currently being developed by Google. 
-The project appeared on GitHub in August 2016 and it is currently hosted at *fuchsia.googlesource.com*[@source]. Although the development of the project has been under way for more than two years, Google has not officially announced it yet. While the other operating systems developed by Google - Chrome OS and Android - are based on the Linux kernel, Fuchsia is based on a new *micro-kernel*, called **Zircon**. 
+The project appeared on GitHub in August 2016 and it is currently hosted at *fuchsia.googlesource.com*[@source]. Although the development of the project has been going on for more than two years, Google has not officially announced it yet. While the other operating systems developed by Google - Chrome OS and Android - are based on the Linux kernel, Fuchsia is based on a new *micro-kernel*, called **Zircon**. 
 
 The description of the project suggests that Fuchsia will be able to run on different platforms: from embedded systems to smartphones, tablets and even personal computers. In May 2017 a user interface was added to the main project, which contributed to media speculation about Google's intentions with Fuchsia, including the possibility that it could replace Android in the future.
 
@@ -36,17 +36,17 @@ In this report we are going to discuss the results of our exploratory semester p
 
 # Fuchsia Layers
 
-In the Google documentation, it is often used the analogy of a 4 layer cake to describe the organization of the Fuchsia project; the names of the layers are: **Zircon**, **Garnet**, **Peridot** and **Topaz**. In this section we are going to briefly describe their purpose and main features. 
+In the Google documentation, it is often used the analogy of a *4 layer cake* to describe the organization of the Fuchsia project. The names of the layers are: **Zircon**, **Garnet**, **Peridot** and **Topaz**. In this section we are going to briefly describe their purpose and main features. 
 
 ![Fuchsia layer cake](img/layers.jpg){#id .class width=45% }
 
 ## Zircon
 
-Zircon[@zircon] is the lowest level of the cake and includes the part of the project we worked with most directly. It contains the micro-kernel behind Fuchsia, also called Zircon, together with a small set of userspace services, drivers, and libraries (like *libc* and *fdio*). Zircon also defines the **Fuchsia Interface Definition Language** (FIDL), which is the protocol used to create bindings between different languages, such as Dart, Go, C/C++ and Rust. The main role of this layer is to ensure the boot of the system, handle the interaction with the hardware, load and run userspace processes.
+Zircon[@zircon] is the lowest level of the cake and includes the part of the project we worked most directly with. It contains the micro-kernel behind Fuchsia, also called Zircon, together with a small set of userspace services, drivers, and libraries (like *libc* and *fdio*). Zircon also defines the **Fuchsia Interface Definition Language** (FIDL), which is the protocol used to create bindings between different languages, such as Dart, Go, C/C++ and Rust. The main role of this layer is to ensure the boot of the system, handle the interaction with the hardware, load and run userspace processes.
 
 ## Garnet
 
-The layer built on top of Zircon is called Garnet[@garnet]. It contains *“device-level system services for software installation, administration, communication with remote systems, and product deployment”*.
+The layer built on top of Zircon is called Garnet[@garnet]. It contains *“device-level system services for software installation, administration, communication with remote systems and product deployment”*.
 Some of the modules included in Garnet are: the network service
 (*Escher*[@escher]), the graphics renderer (*Amber*), the package management and update system. The idea behind this layer is to be able to update all the components running on the Fuchsia system, including apps and the Zircon kernel. 
 
@@ -56,15 +56,15 @@ The main role of Peridot[@peridot] is to handle the modular approach of Fuchsia.
 
 ![Fuchsia's modular approach](img/modular.png){#id .class width=45% }
 
-These components are small piece of software designed to perform specific jobs; currently, there are 2 kinds of components available: **agents** and **modules**. An agent is a component working in the background, which provides information to other components. The modules, instead, are the components working on the foreground and tagged with a specific **task**. 
+These components are small piece of software designed to perform specific jobs; currently, there are 2 kinds of components available: **agents** and **modules**. An agent is a component working in the background, which provides information to other components. Modules, instead, are the components working on the foreground and tagged with a specific **task**. 
 When looking at the roles of agents and modules, it is easy to draw a parallel with services and activities in Android, which are working, respectively, in the background and foreground. However the modular approach of Fuchsia goes even further; indeed every module includes a list of action it can perform (**verbs**) and the entities it can interact with (**nouns**). In this way, if the user wants to perform a specific action, Fuchsia will find the best tool for that action by converting it into a noun and a verb; then it will look through the modules matching the verb and filter the list on the ones that can handle the specified noun.
 
-The Peridot layer contains Ledger, which manages and provides the data storage to each component. These data are separated from one another at component and user level: “*the data store for the particular component/user combination is private – not accessible to other apps of the same user, and not accessible to other users of the same app*”[@ledger]. All the data stores together creates the *personal ledger* of the user, which is synchronized across different devices through the cloud. In this way, users could select an action to take on a device, while actually performing it on another device and having a distributed storage system.
+The Peridot layer contains Ledger, which manages and provides the data storage to each component. These data are separated from one another at component and user level: *“the data store for the particular component/user combination is private – not accessible to other apps of the same user, and not accessible to other users of the same app”* [@ledger]. All the data stores together creates the *personal ledger* of the user, which is synchronized across different devices through the cloud. In this way, users could select an action to take on a device, while actually performing it on another device and having a distributed storage system.
 
 ## Topaz
 
 Topaz[@topaz] is the top layer of the cake and it currently contains four major categories of software: modules, agents, shells and runners.
-Modules are similar to Android apps: some examples are calendar and email. Shells include the base shell and the user shell, while agents - as previously mentioned - are working in background and can be seen as Android's services. The runners Fuchsia is going to include are the Web, Dart, and Flutter runners.
+The shells include the base shell and the user shell, while agents - as previously mentioned - are working in background and can be seen as Android's services. The runners Fuchsia is going to include are the Web, Dart, and Flutter runners.
 
 # The Zircon Kernel
 
@@ -159,25 +159,25 @@ The system calls are defined by `syscalls.abigen` and processed by the `abigen` 
 
 # Filesystem 
 
-Fuchsia’s filesystems live entirely within userspace as simple processes which implement servers. In this way Fuchsia’s filesystems themselves can be changed easily and their modifications don’t require recompiling the kernel. The primary mode of interaction with a filesystem server is achieved using the handle primitive rather than system calls. The kernel has no knowledge about files, directories, or filesystems, so filesystem clients cannot ask the kernel for filesystem access directly.
+Fuchsia’s filesystems live entirely within userspace as simple processes which implement servers. In this way they can be changed easily and their modifications don’t require recompiling the kernel. The primary mode of interaction with a filesystem server is achieved using the handle primitive rather than system calls. The kernel has no knowledge about files, directories, or filesystems, so filesystem clients cannot ask the kernel for filesystem access directly.
 
 ## Open life cycle
 
-The `open` call is a function provided by a standard library; for C/C++ programs, this will normally be declared in `unistd.h`. While on a monolithic kernel an open would be a lightweight shim around a system call,the Zircon kernel intentionally has no such system call. Indeed clients access filesystems through channels.
+The `open` call is a function provided by a standard library; for C/C++ programs, this will normally be declared in `unistd.h`. While on a monolithic kernel an open would be a lightweight shim around a system call, the Zircon kernel intentionally has no such system call. Indeed clients access filesystems through channels.
 
-When a process is initialized, it is provided a table of *“absolute path”* : *“handle”* mappings. All paths accessed from within a process are opened by directing requests through this namespace mapping. In case a relative path was used, the incoming call could be sent over the path representing the current working directory. The standard library is responsible for taking a handle and making them appear like file descriptors, so that the “file descriptor table” is a notion that exists within a client process. A library called *fdio* is responsible for providing a unified interface to a variety of resources, such as files, sockets, services, pipes, and more. This layer defines a group of functions, such as *read*, *write*, *open*, *close*, *seek*... that may be used on file descriptors. Each supported protocol is responsible for providing the required client-side code to interpret the specifics of their interaction. For example, sockets provide multiple handles to clients: one acting for data flow, and one acting as a control plane. Instead, files typically use only a single channel for control and data.
+When a process is initialized, a table of *“absolute path”* : *“handle”* mappings is provided. All paths accessed from within a process are opened by directing requests through this namespace mapping. In case a relative path was used, the incoming call could be sent over the path representing the current working directory. The standard library is responsible for taking a handle and making them appear like file descriptors, so that the *“file descriptor table”* is a notion that exists within a client process. A library called *fdio* is responsible for providing a unified interface to a variety of resources, such as files, sockets, services, pipes, and more. This layer defines a group of functions, such as *read*, *write*, *open*, *close*, *seek*... that may be used on file descriptors. Each supported protocol is responsible for providing the required client-side code to interpret the specifics of their interaction. For example, sockets provide multiple handles to clients: one acting for data flow, and one acting as a control plane. Instead, files typically use only a single channel for control and data.
 
 An “open” call go through the standard library, acting on the current working directory *fdio object*, which transformed the request into a FIDL message, which is sent to the server using the `zx_channel_write` system call. The client can optionally wait for the server’s response using `zx_object_wait_one`, or continue processing asynchronously. Either way, a channel has been created, where one end lives with the client, and the other end is transmitted to the server.
 
 # Contribution
 
-## Compile Fuchsia
+In this section are discussed the various phases of the work we performed during the Semester Project.
 
 ## Insert our program in Fuchsia
 
-The step following the compilation of Fuchsia was to insert a custom program inside the OS. Since we decided to focus on the *Zircon* layer, we started by looking there for the location of some programs we knew being part of that layer only. The source code of some of them (like *vmaps.c*, *top.c*, *memgraph.cpp*) can be found on the following directory: "*\$FUCHSIA_ROOT/zircon/system/uapp/psutils*".
+The step following the compilation of Fuchsia was to insert a custom program inside the OS. Since we decided to focus on the *Zircon* layer, we started by looking there for the location of some programs we knew being part of that layer only. The source code of some of them (like *vmaps.c*, *top.c*, *memgraph.cpp*) can be found in the following directory: `\$FUCHSIA_ROOT/zircon/system/uapp/psutils`.
 
-In this folder we created our custom program that we wanted to add in Zircon and we called it *evil.c*. At this point, we needed to tell Zircon to build this file. In order to do that, we modified the `rules.mk` file in the same folder. This is the code we added (copied from another program already there):
+In this folder we created our custom program that we wanted to add in Zircon and we called it `evil.c`. At this point, we needed to tell Zircon to build this file. In order to do that, we modified the `rules.mk` file in the same folder. This is the code we added: 
 
 ```
 include make/module.mk 
@@ -195,41 +195,42 @@ MODULE_STATIC_LIBS := \
   system/ulib/task-utils
 ```
 
-After that, we built the project again (with the `fx full-build` command) and we run it. Finally, we were able to execute our custom *evil* program inside Fuchsia. We added another program to be compiled inside the OS, called *create-proc*.
+After that, we built the project again, using with the `fx full-build` command and run it. Finally, we were able to execute our custom `evil` program inside Fuchsia. We added another program to be compiled inside the OS, called `create-proc`.
 
-We decided to focus our work on these two programs: we used the *create-proc* to create a new process inside Fuchsia (so we knew the content of its memory) and *evil* to play with the OS and its syscalls. Now we are going to discuss in detail their content.
+We decided to focus our work on these two programs: we used the `create-proc` to create a new process inside Fuchsia (so we knew the content of its memory) and `evil` to tamper with the OS and its system calls. The content of the two custom programs are going to be discussed in the following paragraphs.
 
-## Info about `create-proc` program
+## `create-proc`
 
-We followed an online blog \[PUT REFERENCE\] to create a new process in Fuchsia. This requires few steps:
+In order to create a new process inside Fuchsia, we followed a blog post called *"Admiring the Zircon Part 1: Understanding Minimal Process Creation"*[@adm].
+This requires few steps:
 
-1) A new process is created using the `zx_process_create` function, it is empty now and it requires to be executed later. The following arguments are required:
-    - The handle of a parent job. The new process is created as child of this job, which, in our case, was the default job in Fuchsia. We obtained its handle using the `zx_job_default()` function.
-    - The name of the process
-    - The size of the name
-    - An integer for options (`0` in our case)
+1) An empty process is created using the `zx_process_create` function, which will be executed with the following arguments:
+    - The handle of a parent job. The new process is created as child of this job which, in our case, was the *default job* in Fuchsia. We obtained its handle using the `zx_job_default` function.
+    - The name of the process.
+    - The size of the name.
+    - An integer for options (`0` in our case).
   This function returns two handles: one to the new process, and a handle to the root of its address space.
 
 Two Virtual Memory Objects (VMOs) are required to proceed, one for the stack space, the other one for the code space.
 
-2) Create two (VMOs) using the `zx_vmo_create` function. The following arguments are required:
+2) It is possible to create two VMOs using the `zx_vmo_create` function. The following arguments are required:
     - The size of the VMO
     - An integer for options (`0` in our case)
   This function returns an handle pointing to the newly created VMO.
 
-To make the new process not being killed after the *create-proc* program is terminated, it is required to execute a jump loop instruction, which will keep it alive until another program closes it.
+To make the new process not being killed after the `create-proc` program is terminated, it is required to execute a *jump loop* instruction, which will keep it alive until another program closes it.
 
-3) An array containing the jump loop in shell code (i.e. \[`0xeb`, `0xfe`\]) is created and it will be written into the first VMO using the `zx_vmo_write` function. The following arguments are required:
-  - The handle of a VMO object
+3) We can create array containing the jump loop in shell code (i.e. \[`0xeb`, `0xfe`\]) and write it into the first VMO using the `zx_vmo_write` function. The following arguments are required:
+  - The handle of the VMO object
   - A pointer to an array containing the code
   - An integer for options (`0` in our case)
   - The size of the code
 
 After the creation of the two VMOs we need to map them in the Virtual Memory Address Region (VMAR).
 
-4) Map the VMOs to the VMAR using the function `zx_vmar_map`. In this function we need to pass also some permissions, which will be *READ* and *WRITE* for the stack space and *READ* and *EXECUTE* for the code space. This function returns a pointer to where the VMO is mapped in the given address region. In our case, we passed the handle pointing to the root of our process' address spaces.
+4) In order to map the VMOs to the VMAR we can use the function `zx_vmar_map`. In this function we need to pass also some permissions, which will be *READ* and *WRITE* for the stack space and *READ* and *EXECUTE* for the code space. This function returns a pointer to where the VMO is mapped in the given address region. In our case, we passed the handle pointing to the root of our process' address spaces.
 
-5) In order to start our process, we needed to create a new thread as a requirement of the `zx_process_start` function as well as a new event, which is an object that is signalable.
+5) In order to start our process, we needed to create a new thread as a requirement of the `zx_process_start` function as well as a new event, which is an object that is *signalable*.
 
 6) Finally, to start the process, we used the function `zx_process_start`. The following arguments are required:
   - The handle of a process object
@@ -243,22 +244,22 @@ We used this program to create a new process in Fuchsia called `my_proc` for whi
 
 ## Get root job
 
-Looking in the Internet for useful information, we found a video \[PUT REFERENCE\] tackling the problem of security in Fuchsia. As part of this video, the speaker presented a flaw in the current implementation of the kernel, which allows a program who is able to get the *"root job"* to obtain all its children recursively. This means that all the handles of running processes and jobs could be obtain. Therefore, we started looking in the code for references about a *root job*. 
+While looking for useful information, we found a video[@vid][@linux] tackling the problem of security in Fuchsia. As part of the presentation, the speaker discussed a flaw in the current implementation of the kernel, which allows a program who is able to get the *"root job"* to obtain all its children recursively. This means that all the handles of running processes and jobs could be obtain. Therefore, we started looking in the code for references about a *root job*. 
 
 We found a reference 
 
 function $\rightarrow$ `ioctl_sysinfo_get_root_job`
 library we imported $\rightarrow$ `#include <zircon/device/sysinfo.h>`
 
-## Info about `evil` program
+## `evil` 
 
-The `evil` program can perform several actions:
+The `evil` program can perform 3 actions:
 
-- Kill a process given a koid
-- Get the rights of a process given a koid
-- Dump the memory of a process given a koid
+- Kill a process given its `koid`
+- Get the rights of a process given its `koid`
+- Dump the memory of a process given a `koid`
 
-In order to do each of the mentioned task, the program has to navigate the tree of running jobs and retrieve the corresponding handle starting from the root job, which we retrieve using the following code:
+To do each of the mentioned task, the program has to navigate the tree of running jobs and retrieve the corresponding handle starting from the root job, which we retrieve using the following code:
 
 ```
 int fd = open("/dev/misc/sysinfo", O_RDWR);
@@ -272,7 +273,7 @@ ssize_t n = ioctl_sysinfo_get_root_job(fd, root_job);
 close(fd);
 ```
 
-We copied it from the code of Fuchsia and modified it to retrieve the root job. Then, we used its handle to recursively get all its children (both jobs and processes) in the following way:
+We copied it directly from the source code of Fuchsia and modified it so that we can retrieve the root job. Then, we used its handle to recursively get all its children (both jobs and processes) in the following way:
 
 1) As an initial step, all the jobs and processes which are directly children of the root job are gathered using the `zx_object_get_info` function. Unfortunately, this function does not work recursively, so we had to do it on our own. Its requirements are:
     - The handle for which info are retrieved
@@ -283,9 +284,11 @@ This function returns an array of koids (ids of processes and jobs in Fuchsia) a
 
 2) The function `zx_object_get_child` returns the handle of a child, given the parent handle and the koid representing it. In this way, for each child of the root job we could get the corresponding handle and recursively gather all the currently running processes and jobs.
 
-After that, we wrapped these function into just one that, given a koid as input, returns its corresponding handle. Now we are going to briefly describe each of the tasks our program is doing.
+After that, we wrapped these functions into a single one that, given a koid as input, returns its corresponding handle. Now we are going to briefly describe each of the tasks our program is doing.
 
 ### Kill a process
+
+**TODO: HANDLE RIGHTS ARE IMPORTANT, PROCESS CHILD OF THE ROOT JOB**
 
 Once we have a handle representing a process/job, killing it is an easy task. This is simply done via the function `zx_task_kill`, which only requires the handle of what you want to kill.
 
@@ -297,13 +300,12 @@ To get more info from a handle we used one of the function we already mentioned,
 
 To dump the memory of a process we need to get where its memory is mapped. Again, we called the `zx_object_get_info` function, with the `ZX_INFO_PROCESS_MAPS` topic. This time, the result is an array of `zx_info_maps_t` objects, which, according to the documentation, is *"a depth-first pre-order walk of the target process's Aspace/VMAR/Mapping tree"*. For each element of this array we got the `base_address` and we read its associated memory with the function `zx_process_read_memory`.
 
-
-
 # Conclusions
-In this report we discussed the results of exploratory semester project about Fuchsia. We started with a general description of the 4 levels the *Fuchsia cake*, and continued with an more specific analysis on the Zircon kernel. In particular, the third section is focused on kernel objects, handles, the vDSO and system calls. In the fourth section we reported a brief study of Fuchsia filesystems and an example of how an *open* call is handled.
 
-In the last section we illustrated our contribution, which is summarized in ....
+In this report we discuss the results of the exploratory semester project about Google Fuchsia. We started with a general description of the 4 levels the *Fuchsia cake*, and continued with an more specific analysis on the Zircon kernel. In particular, the third section is focused on kernel objects, handles, the vDSO and system calls. In the fourth section we reported a brief study of Fuchsia filesystems and an example of how an *open* call is handled.
 
-An important part of the semester project was dedicated to reading and understanding the Fuchsia documentation, which, to date, is still incomplete and with frequent changes. The absence of documentation and material has slowed down a good part of the objectives, but has also contributed positively to the originality of the project and has allowed us to enrich our knowledge with new and state-of-the-art topics.
+In the last section we illustrated our contribution, which can be summarized in two programs that can be called directly from Fuchsia. The first one (`create-proc`) allows the creation of a new process. The second one (`evil`) exploit the leakage of the root job handle with high level rights, to recursively navigate the tree of processes. Given a `koid`, `evil` is able to kill the respective process, dump its memory and return the associated rights we have with respect to that process.
+
+An important part of the semester project was dedicated to reading and understanding the Fuchsia documentation, which, to date, is still incomplete and subject to frequent changes. The absence of documentation and material has slowed down part of the objectives, but has also contributed positively to the originality of the project and has allowed us to enrich our knowledge with new and state-of-the-art concepts.
 
 # References

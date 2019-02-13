@@ -65,13 +65,12 @@ The Peridot layer contains Ledger, which manages and provides the data storage t
 
 Topaz[@topaz] is the top layer of the cake and it currently contains four major categories of software: modules, agents, shells and runners.
 Modules are similar to Android apps: some examples are calendar and email. Shells include the base shell and the user shell, while agents - as previously mentioned - are working in background and can be seen as Android's services. The runners Fuchsia is going to include are the Web, Dart, and Flutter runners.
-The role of the Flutter runner is particularly important for Fuchsia, since it would allow developers "*to build beautiful native apps on iOS and Android from a single codebase*"[@flutter]. 
 
 # The Zircon Kernel
 
 Fuchsia's micro-kernel has the same name of the layer in which it is placed: Zircon. The micro-kernel *“provides syscalls to manage processes, threads, virtual memory, inter-process communication, waiting on object state changes and locking”*[@zirconk]. 
 
-Zircon was originally a branch of **LK** (LittleKernel[@lk]), another kernel developed at Google for small systems, typically used in embedded applications. However Zircon targets devices have less resource constraints, thus some concepts were added on top of LK, such as the concept of process. Other main differences are that Zircon is 64-bit only, while LK is 32-bit and that Zircon has a capability-based security model, while in LK all code is trusted.
+Zircon was originally a branch of **LK** (LittleKernel[@lk]), a micro-kernel specifically developed for small systems and typically used in embedded applications. However Zircon targets devices have less resource constraints, thus some concepts were added on top of LK, such as the concept of process. Other main differences are that Zircon is 64-bit only, while LK is 32-bit and that Zircon has a capability-based security model, while in LK all code is trusted.
 
 ## Zircon Kernel objects
 
@@ -113,12 +112,12 @@ Virtual Memory Address Regions represent the allocation of an address space and 
 ## Handles
 
 Handles are used to refer to kernel objects from the userspace and they can be transmitted to other processes over channels, by using either `zx_channel_write()` or `zx_process_start()` and passing the handle as the argument of the first thread into a new process. Every object may have multiple handles that refers on them, even in the same process. Typically, when the last open handle referring to a specific object is closed, the object is destroyed or put into a final and permanent state. In addition to pointing to kernel object, a handle specifies also the actions which may be performed on the object; two handles that refer to the same object may have different rights.
-
+In the userspace, a handle is a 32bit integer (type `zx_handle_t`).
 `zx_handle_duplicate()` and `zx_handle_replace()` may be used to obtain additional handles referring to the same object as the Handle passed in, optionally with less rights. The `zx_handle_close()` system call, instead, closes a given handle. In case that handle is the last one pointing to that object, the object is released.
 
 ## vDSO
 
-vDSO stands for **virtual Dynamic Shared Object** and it represents the only means of access to system calls in Zircon. It is a *dynamic shared object* because it is a shared library in the ELF format, however it is virtual because it’s not loaded from an ELF file that is located in a filesystem. Instead, the vDSO image is provided directly by the kernel at compile time, which exposes it to userspace as a *read-only Virtual Memory Object*.
+vDSO stands for **virtual Dynamic Shared Object** and it represents the only means of access to system calls in Zircon. It is a *dynamic shared object* because it is a shared library in the ELF format, however it is virtual because it’s not loaded from an ELF file that is located in a filesystem. Instead, the vDSO image is provided directly by the kernel, which exposes it to userspace as a *read-only Virtual Memory Object*.
 
 Whenever a program loader sets up a process, the only way to make system calls is for the program loader to map the vDSO into the new process's address space before its first thread starts running. Therefore, each process that will launch other processes capable of making system calls must have access to the vDSO VMO.
 
@@ -148,7 +147,7 @@ vDSO variants are an experimental feature that was proposed in the Fuchsia docum
 As mentioned above, system calls are provided by `libzircon.so`, which is a **virtual shared library** that the Zircon kernel provides to userspace, better known as the virtual Dynamic Shared Object or vDSO. The system calls are C functions of the form `zx_noun_verb()` or `zx_noun_verb_direct-object()`.
 The expected number of system call that Zircon will include is approximately 100, however some temporary syscalls are currently available, mostly for debug purposes; these temporary syscalls will be removed once *"API/ABI surface is finalized"*. Zircon syscalls are generally non-blocking, some exceptions are `wait_one`, `wait_many`, `port_wait` and `thread_sleep`.
 
-System calls are used to make userspace code interact with kernel objects, almost exclusively using **handles**. In the userspace, a handle is a 32bit integer (type `zx_handle_t`). Before executing a , Zircon checks that the specified handle parameters refer to an handle that exists in the handle table of the calling process. Moreover, the kernel checks that the handle has the required rights for the requested operation. 
+System calls are used to make userspace code interact with kernel objects, almost exclusively using **handles**. Before executing a syscall, Zircon checks that the specified handle parameters refer to an handle that exists in the handle table of the calling process. Moreover, the kernel checks that the handle has the required rights for the requested operation. 
 
 From an access standpoint, system calls fall into three categories:
 

@@ -298,8 +298,41 @@ To get more info from a handle we used one of the function we already mentioned,
 
 ### Dump memory of a process
 
-To dump the memory of a process we need to get where its memory is mapped. Again, we called the `zx_object_get_info` function, with the `ZX_INFO_PROCESS_MAPS` topic. This time, the result is an array of `zx_info_maps_t` objects, which, according to the documentation, is *"a depth-first pre-order walk of the target process's Aspace/VMAR/Mapping tree"*. For each element of this array we got the `base_address` and we read its associated memory with the function `zx_process_read_memory`.
+To dump the memory of a process we need to get where its memory is mapped. Again, we called the `zx_object_get_info` function, with the `ZX_INFO_PROCESS_MAPS` topic. This time, the result is an array of `zx_info_maps_t` objects, which, according to the documentation, is *"a depth-first pre-order walk of the target process's Aspace/VMAR/Mapping tree"*. For each element of this array we got the `base_address` and we read its associated memory with the function `zx_process_read_memory`. We check the status of these calls and if it is successful we print all the memory of a buffer using a function that dumps it in a more human-readable form. The length of the buffer (which by default is set to 100) can be changed via an option when running the `evil` program.
 
+<<<<<<< HEAD
+=======
+We tested our program using the process we created with `create-proc` and we were successfully able to see the *jump loop* code which is executing.
+
+## Our unsuccessful findings
+
+During this project we decided to look also into the syscall checks performed by the VDSO. We decided to take the code of `create-proc` as a starting point to play with syscalls using shellcode.
+
+Since the Zircon kernel is accepting syscalls coming only from the VDSO address space, we decided to get its base address and perform a `nanosleep` call (which makes the process hang for 5 seconds) jumping at the right address in memory. 
+
+When a process crashes in Fuchsia, some information are displayed on screen, including the VDSO address. This is randomized, indeed, each time the same program crashes, the address of the VDSO changes.  
+In our program, we used the function `dlsym`, and we could obtain the address of the symbol `zx_deadline_after`, a syscall of the kernel. We printed it in the console, and we could obtain the offset between that function and the beginning of the VDSO subtracting it to the VDSO base address which is printed when a process crashes. In this way we could obtain the VDSO base address dynamically from the code.
+
+After that, we used the following code to run some shellcode:
+
+```
+asm("movq %1, %%rdi;\*/
+     movl $3, %%eax;\*/
+     jmp *%2;"
+    : "=a" (res)
+    : "d" (tmp), "r" (sys_location));
+```
+
+This piece of code moves a value (`tmp` in our case, which is equal to 1) to `rdi` register and this step is required for the `nanosleep` to work. Then, we move 3, which is the number of the syscall we want to call, to the `eax` register. Finally, we jump to `sys_location`, which is the base address of the VDSO plus the offset of the `nanosleep` syscall that we got using IDA.
+
+Everything works and the process hangs for 5 seconds before quitting. Therefore, we decided to try two different things:
+
+- Jump to another syscall and check if the process still hangs
+- Change the shellcode and check if it works with an arbitrary syscall
+
+Unfortunately, both these things were unsuccessful and this is why we decided to proceed with a different way.
+
+>>>>>>> c3a954d38f40a0fe62ba892dd13eda60a1434bd7
 # Conclusions
 
 In this report we discuss the results of the exploratory semester project about Google Fuchsia. We started with a general description of the 4 levels the *Fuchsia cake*, and continued with an more specific analysis on the Zircon kernel. In particular, the third section is focused on kernel objects, handles, the vDSO and system calls. In the fourth section we reported a brief study of Fuchsia filesystems and an example of how an *open* call is handled.
